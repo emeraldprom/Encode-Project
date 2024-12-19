@@ -7,69 +7,80 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Function to read external files for RAG
+async function readRAGSource(filename: string): Promise<string> {
+  try {
+    // Construct the full path to the file in the project's public directory
+    const filePath = path.join(process.cwd(), 'public', 'rag-sources', filename);
+    
+    // Read the file
+    const fileContents = await fs.promises.readFile(filePath, 'utf-8');
+    
+    // Handle different file types
+    if (filename.endsWith('.json')) {
+      // If it's a JSON file, stringify it nicely
+      return JSON.stringify(JSON.parse(fileContents), null, 2);
+    }
+    
+    // For txt or other files, return contents directly
+    return fileContents;
+  } catch (error) {
+    console.error(`Error reading RAG source file ${filename}:`, error);
+    return `Could not read source file: ${filename}`;
+  }
+}
+
 // Function to extract key details from a story section
-function extractImageDetails(section: string, keywords: string[]) {
-  // Default fallback prompts using keywords
-  let defaultPrompt = keywords.length > 0 
-    ? `A blockchain superhero scene related to ${keywords.join(", ")}` 
-    : "A dynamic blockchain superhero scene";
-
-  // Try to extract specific details
-  const mainCharacterMatch = section.match(/(?:hero|protagonist|character)\s*(?:is|was)?\s*([^,.]+)/i);
-  const locationMatch = section.match(/in\s+(?:a|the)\s+([^,.]+)/i);
-  const actionMatch = section.match(/(?:hero|protagonist)\s+([^,.]+)/i);
-  const challengeMatch = section.match(/challenge\s+(?:of|was)\s+([^,.]+)/i);
-
-  // Construct a more specific prompt
-  let detailedPrompt = defaultPrompt;
-  
-  if (mainCharacterMatch) {
-    detailedPrompt += `, featuring a blockchain hero like ${mainCharacterMatch[1]}`;
-  }
-  
-  if (locationMatch) {
-    detailedPrompt += `, set in ${locationMatch[1]}`;
-  }
-  
-  if (actionMatch) {
-    detailedPrompt += `, showing the blockchain hero ${actionMatch[1]}`;
-  }
-  
-  if (challengeMatch) {
-    detailedPrompt += `, confronting a challenge of ${challengeMatch[1]}`;
-  }
-
-  return `Cartoon blockchain superhero illustration in a vibrant, dynamic style: ${detailedPrompt}. 
-  Colorful, engaging, suitable for children, capturing the essence of the story section.`;
+function extractImageDetails(section: string, keywords: string[]): string {
+  // Create a basic prompt combining the section text and keywords
+  return `Create a child-friendly cartoon illustration for this story section: ${section}. 
+    Include these elements: ${keywords.join(", ")}. Style: colorful, animated, superhero-themed.`.slice(0, 1000);
 }
 
 export async function POST(request: Request) {
   try {
-    const { keywords } = await request.json();
+    const { keywords, ragSource } = await request.json();
     
     // Validate keywords
     if (!Array.isArray(keywords) || keywords.length === 0) {
       return NextResponse.json({ error: "Invalid keywords" }, { status: 400 });
     }
 
-    // Generate the story with explicit beginning, middle, and end sections
-    const storyPrompt = `Write a short blockchain/web3/cryptocurrency superhero cartoon story for kids based on these keywords: ${keywords.join(", ")}. 
-    Structure the story with three clear parts:
-    1. Beginning: Introduce the blockchain hero, their use-case, and the real-world challenge
-    2. Middle: The blockchain hero faces development or user-experience obstacles and begins to overcome them
-    3. End: The blockchain hero triumphs and delivers a better system
+    // Read RAG source if provided
+    let ragContext = '';
+    if (ragSource) {
+      ragContext = await readRAGSource(ragSource);
+    }
 
+    // Generate the story with RAG context
+    const storyPrompt = `Context for story generation:
+    ${ragContext ? `RAG Source Document: ${ragContext}` : 'No additional context provided.'}
+
+    Write a short blockchain superhero cartoon story for early teens based on these keywords: ${keywords.join(", ")}. 
+    Incorporate details from the provided context if relevant.
+    
+    Structure the story with three clear parts:
+    1. Beginning: Introduce the hero, their use-case, and the initial challenge
+    2. Middle: The hero faces obstacles and begins to overcome them
+    3. End: The hero introduces a better system
     Format the story with clear section markers: [BEGINNING], [MIDDLE], [END]`;
     
     const storyResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: storyPrompt }],
+      max_tokens: 500, // Limit response length
     });
     
     const fullStory = storyResponse.choices[0]?.message?.content?.trim() || "Story could not be generated.";
     
     // Parse the story into sections
-    const [, beginning, middle, end] = fullStory.match(/\[BEGINNING\](.*?)\[MIDDLE\](.*?)\[END\](.*)/s) || [];
+    const beginningMatch = fullStory.match(/\[BEGINNING\](.*?)(?=\[MIDDLE\])/s);
+    const middleMatch = fullStory.match(/\[MIDDLE\](.*?)(?=\[END\])/s);
+    const endMatch = fullStory.match(/\[END\](.*)/s);
+
+    const beginning = beginningMatch ? beginningMatch[1].trim() : "";
+    const middle = middleMatch ? middleMatch[1].trim() : "";
+    const end = endMatch ? endMatch[1].trim() : "";
 
     // Generate image prompts dynamically based on story sections
     const imagePrompts = [
@@ -86,8 +97,7 @@ export async function POST(request: Request) {
         n: 1,
         size: "512x512",
       });
-      
-      const imageUrl = imageResponse.data[0]?.url;
+      const imageUrl = imageResponse.data[0]?.url || '';
       
       if (!imageUrl) {
         throw new Error(`Could not generate image for section ${index + 1}`);
@@ -110,10 +120,11 @@ export async function POST(request: Request) {
     
     return NextResponse.json({ 
       story: fullStory,
-      beginning: beginning?.trim(),
-      middle: middle?.trim(),
-      end: end?.trim(),
-      imagePrompts, // Added for debugging/transparency
+      ragContext, // Include RAG context for transparency
+      beginning,
+      middle,
+      end,
+      imagePrompts,
       images: imagePaths 
     });
   } catch (error) {
