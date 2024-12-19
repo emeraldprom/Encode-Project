@@ -18,15 +18,15 @@ Web3 is difficult to grasp for many, so there is a need for educational tools th
 
    The prompt box encourages blockchain related keywords. There is an option to use RAG
 
-   After experimenting with assistant prompts, around positive/negative sentiment towards the themes of decentralisation and centralisation, we left it fairly flexible
+After experimenting with assistant prompts, around positive/negative sentiment towards the themes of decentralisation and centralisation, we left it fairly flexible
    
-    When a keyword is a story is provided with a blockchain hero theme
+When a keyword is a story is provided with a blockchain hero theme
     
-    If the term is found within the loaded RAG document then content will be provided to the model in order to give the user an answer
+If the term is found within the loaded RAG document then content will be provided to the model in order to give the user an answer
     
-    If the term cannot be used from the RAG document then the answer will be provided by the model
+If the term cannot be used from the RAG document then the answer will be provided by the model
     
-    Any other unrelated will be answered by the model.
+Any other unrelated will be answered by the model.
 
 ⚙ Usage and setup
 
@@ -47,7 +47,7 @@ To run the web application locally
 
  Run the application using the command: 
     
-   npm run dev
+      npm run dev
     
 Open a web browser at the following address:
 
