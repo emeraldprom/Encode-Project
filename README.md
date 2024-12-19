@@ -1,8 +1,8 @@
 # Encode-Project
-web3 superhero picturebook story using next.js
+Web3 superhero picturebook story using next.js
 (Work in progress)
 
-create-next-app@latest picturebook
+   create-next-app@latest picturebook
 
 use a .env in the root folder with an openai API key
 
@@ -32,8 +32,8 @@ Web3 is difficult to grasp for many, so there is a need for educational tools th
 
 Setup and configuration
 
-    Provide your own .env.local file with an OpenAI API key (OPENAI_API_KEY=)
-    Install openai using the command: 
+Provide your own .env.local file with an OpenAI API key (OPENAI_API_KEY=)
+Install openai using the command: 
     
     npm install openai
 
@@ -45,13 +45,13 @@ Locate the App/Api folder, add a "story" folder and add the route.ts file into t
 
 To run the web application locally
 
-    Run the application using the command: 
+ Run the application using the command: 
     
-    npm run dev
+   npm run dev
     
-    Open a web browser at the following address:
-    
-    http://localhost:3000
+Open a web browser at the following address:
+
+http://localhost:3000
 
 
 ISSUES
