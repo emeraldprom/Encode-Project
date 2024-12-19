@@ -3,17 +3,30 @@ import { useState } from "react";
 
 interface StoryResponse {
   story: string;
+  ragContext?: string;
   beginning: string;
   middle: string;
   end: string;
+  imagePrompts: string[];
   images: string[];
 }
 
+// Available RAG sources ( match files in public/rag-sources/)
+const RAG_SOURCES = [
+  { value: '', label: 'No Additional Context' },
+  { value: 'Glossary.json', label: 'Glossary' },
+  { value: 'DeAi.txt', label: 'DeAi' },
+  { value: 'DeAi edit.txt', label: 'DeAi edit' },
+  { value: 'Dollar.txt', label: 'Dollar' },
+];
+
 export default function HomePage() {
   const [keywords, setKeywords] = useState("");
+  const [ragSource, setRagSource] = useState("");
   const [storyData, setStoryData] = useState<StoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showContext, setShowContext] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +38,8 @@ export default function HomePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          keywords: keywords.split(",").map((kw) => kw.trim()).filter((kw) => kw !== "")
+          keywords: keywords.split(",").map((kw) => kw.trim()).filter((kw) => kw !== ""),
+          ragSource: ragSource || undefined
         }),
       });
       
@@ -46,22 +60,37 @@ export default function HomePage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">AI-Powered Picture Book Generator</h1>
-      <form onSubmit={handleSubmit} className="mb-6">
-        <input
-          type="text"
-          placeholder="Enter 1-3 blockchain terms (e.g., ZK, bitcoin, decentralisation )"
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
-          className="border border-gray-300 p-2 rounded w-full mb-4"
-          required
-        />
+      <h1 className="text-2xl font-bold mb-4">AI-Powered StoryBook Generator</h1>
+      <form onSubmit={handleSubmit} className="mb-6 space-y-4">
+        <div>
+          <input
+            type="text"
+            placeholder="Enter 1-3 keywords (e.g., ZK, permissionless, validator)"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            className="border border-gray-300 p-2 rounded w-full"
+            required
+          />
+        </div>
+        <div>
+          <select
+            value={ragSource}
+            onChange={(e) => setRagSource(e.target.value)}
+            className="border border-gray-300 p-2 rounded w-full"
+          >
+            {RAG_SOURCES.map((source) => (
+              <option key={source.value} value={source.value}>
+                {source.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full"
           disabled={loading}
         >
-          {loading ? "Generating..." : "Create Picture Book"}
+          {loading ? "Generating..." : "Create Story"}
         </button>
       </form>
       
@@ -102,6 +131,24 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+
+          {/* Context Display */}
+          {storyData.ragContext && (
+            <div className="mt-4">
+              <button 
+                onClick={() => setShowContext(!showContext)}
+                className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+              >
+                {showContext ? "Hide" : "Show"} RAG Context
+              </button>
+              {showContext && (
+                <div className="mt-2 bg-gray-100 p-4 rounded">
+                  <h3 className="font-semibold mb-2">RAG Context:</h3>
+                  <pre className="text-sm overflow-x-auto">{storyData.ragContext}</pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
